@@ -60,27 +60,15 @@ wss.on("connection", (ws) => {
       if (data.type === "join") {
         ws.roomId = data.roomId;
 
-        // if (!rooms[ws.roomId]) {
-        //   rooms[ws.roomId] = {
-        //     admin: null,
-        //     clients: new Set(),
-        //     history: [],
-        //     createdAt: new Date(),
-        //   };
-
         if (!rooms[ws.roomId]) {
-  rooms[ws.roomId] = {
-    admin: null,
-    clients: new Set(),
-    history: [],
-    redoStack: [],
-    createdAt: new Date(),
-  };
-
+          rooms[ws.roomId] = {
+            admin: null,
+            clients: new Set(),
+            history: [],
+            createdAt: new Date(),
+          };
           console.log(`Создана новая комната: ${ws.roomId}`);
         }
-
-
 
         rooms[ws.roomId].clients.add(ws);
         console.log(`${ws.userId} вошел в ${ws.roomId}`);
@@ -127,9 +115,6 @@ wss.on("connection", (ws) => {
           timestamp: Date.now(),
         });
 
-        room.redoStack = [];
-
-
         if (room.history.length > 10000) {
           room.history = room.history.slice(-10000);
         }
@@ -142,62 +127,11 @@ wss.on("connection", (ws) => {
       }
 
       // Очистка
-      // if (data.type === "clear" && ws.isAdmin) {
-      //   const room = rooms[ws.roomId];
-      //   if (!room) return;
-
-      //   room.history = [];
-
-      //   room.clients.forEach((client) => {
-      //     if (client.readyState === WebSocket.OPEN) {
-      //       client.send(JSON.stringify({ type: "clear" }));
-      //     }
-      //   });
-
-
-      //   // ОТМЕНА (Undo)
-      // if (data.type === "undo" && ws.isAdmin) {
-      //   const room = rooms[ws.roomId];
-      //   if (!room || room.history.length === 0) return;
-
-      //   // Берем последние 50 сегментов (одна линия)
-      //   const undone = room.history.splice(-50); 
-      //   room.redoStack.push(undone); // Сохраняем для повтора
-
-      //   // Рассылаем всем команду перерисовать всё из обновленной истории
-      //   room.clients.forEach((client) => {
-      //     if (client.readyState === WebSocket.OPEN) {
-      //       client.send(JSON.stringify({ type: "clear" }));
-      //       client.send(JSON.stringify({ type: "history", history: room.history }));
-      //     }
-      //   });
-      // }
-
-      // // ПОВТОР (Redo)
-      // if (data.type === "redo" && ws.isAdmin) {
-      //   const room = rooms[ws.roomId];
-      //   if (!room || room.redoStack.length === 0) return;
-
-      //   const redone = room.redoStack.pop();
-      //   room.history.push(...redone);
-
-      //   // Рассылаем добавленные сегменты всем
-      //   room.clients.forEach((client) => {
-      //     if (client.readyState === WebSocket.OPEN) {
-      //       client.send(JSON.stringify({ type: "history", history: redone }));
-      //     }
-      //   });
-      // }
-
-      //   console.log(`Холст очищен в ${ws.roomId}`);
-      // }
-
       if (data.type === "clear" && ws.isAdmin) {
         const room = rooms[ws.roomId];
         if (!room) return;
 
         room.history = [];
-        room.redoStack = [];
 
         room.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
@@ -207,38 +141,6 @@ wss.on("connection", (ws) => {
 
         console.log(`Холст очищен в ${ws.roomId}`);
       }
-
-      // ОТМЕНА (Undo)
-      if (data.type === "undo" && ws.isAdmin) {
-        const room = rooms[ws.roomId];
-        if (!room || room.history.length === 0) return;
-
-        const undone = room.history.splice(-50);
-        room.redoStack.push(undone);
-
-        room.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: "clear" }));
-            client.send(JSON.stringify({ type: "history", history: room.history }));
-          }
-        });
-      }
-
-      // ПОВТОР (Redo)
-      if (data.type === "redo" && ws.isAdmin) {
-        const room = rooms[ws.roomId];
-        if (!room || room.redoStack.length === 0) return;
-
-        const redone = room.redoStack.pop();
-        room.history.push(...redone);
-
-        room.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: "history", history: redone }));
-          }
-        });
-      }
-
     } catch (err) {
       console.error("Ошибка:", err);
       ws.send(JSON.stringify({ type: "error", message: "Ошибка сервера" }));
